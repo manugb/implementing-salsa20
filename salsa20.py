@@ -9,19 +9,18 @@ little4_i32 = Struct("<4i")    # 04 little-endian 32-bit signed ints.
 little2_i32 = Struct("<2i")    # 02 little-endian 32-bit signed ints.
 
 
-def generate_matrix(key, nonce, block_number):
-    assert len(key) == 32 and isinstance(key, bytes), "Key should be 32 bytes"
-    assert len(nonce) == 8 and isinstance(nonce, bytes), "Nonce should be 8 bytes"
+sigma = "expand 32-byte k"
 
-    key_1, key_2, key_3, key_4, key_5, key_6, key_7, key_8 = little8_i32.unpack(key)
-    block_1, block_2 = little2_i32.unpack(little_u64.pack(block_number))
-    nonce_1, nonce_2 = little2_i32.unpack(nonce)
+
+def generate_matrix(key, iv, position):
+    key_arr = little8_i32.unpack(key)
+    iv_arr = little2_i32.unpack(iv)
 
     return [
-        0x61707865,        key_1,      key_2,      key_3,
-        key_4,        0x3320646e,    nonce_1,    nonce_2,
-        block_1,         block_2, 0x79622d32,      key_5,
-        key_6,             key_7,      key_8, 0x6b206574,
+        0x61707865,   0x3320646e, 0x79622d32, 0x6b206574,
+        key_arr[0],   key_arr[1], key_arr[2], key_arr[3],
+        key_arr[4],   key_arr[5], key_arr[6], key_arr[7],
+        position,              0,  iv_arr[0],  iv_arr[1],
     ]
 
 
@@ -60,39 +59,22 @@ def add32(a, b):
     return (-(hi & 0x8000) | (hi & 0x7FFF)) << 16 | (lo & 0xFFFF)
 
 
+def quarter_round(x, a, b, c, d):
+    x[a] += x[b]; x[d] = rot32(x[d] ^ x[a], 16)
+    x[c] += x[d]; x[b] = rot32(x[b] ^ x[c], 12)
+    x[a] += x[b]; x[d] = rot32(x[d] ^ x[a], 8)
+    x[c] += x[d]; x[b] = rot32(x[b] ^ x[c], 7)
+
+
 def _do_salsa20_round(x):
-    x[4] = xor(x[4], rot32(add32(x[0], x[12]), 7))
-    x[8] = xor(x[8], rot32(add32(x[4], x[0]), 9))
-    x[12] = xor(x[12], rot32(add32(x[8], x[4]), 13))
-    x[0] = xor(x[0], rot32(add32(x[12], x[8]), 18))
-    x[9] = xor(x[9], rot32(add32(x[5], x[1]), 7))
-    x[13] = xor(x[13], rot32(add32(x[9], x[5]), 9))
-    x[1] = xor(x[1], rot32(add32(x[13], x[9]), 13))
-    x[5] = xor(x[5], rot32(add32(x[1], x[13]), 18))
-    x[14] = xor(x[14], rot32(add32(x[10], x[6]), 7))
-    x[2] = xor(x[2], rot32(add32(x[14], x[10]), 9))
-    x[6] = xor(x[6], rot32(add32(x[2], x[14]), 13))
-    x[10] = xor(x[10], rot32(add32(x[6], x[2]), 18))
-    x[3] = xor(x[3], rot32(add32(x[15], x[11]), 7))
-    x[7] = xor(x[7], rot32(add32(x[3], x[15]), 9))
-    x[11] = xor(x[11], rot32(add32(x[7], x[3]), 13))
-    x[15] = xor(x[15], rot32(add32(x[11], x[7]), 18))
-    x[1] = xor(x[1], rot32(add32(x[0], x[3]), 7))
-    x[2] = xor(x[2], rot32(add32(x[1], x[0]), 9))
-    x[3] = xor(x[3], rot32(add32(x[2], x[1]), 13))
-    x[0] = xor(x[0], rot32(add32(x[3], x[2]), 18))
-    x[6] = xor(x[6], rot32(add32(x[5], x[4]), 7))
-    x[7] = xor(x[7], rot32(add32(x[6], x[5]), 9))
-    x[4] = xor(x[4], rot32(add32(x[7], x[6]), 13))
-    x[5] = xor(x[5], rot32(add32(x[4], x[7]), 18))
-    x[11] = xor(x[11], rot32(add32(x[10], x[9]), 7))
-    x[8] = xor(x[8], rot32(add32(x[11], x[10]), 9))
-    x[9] = xor(x[9], rot32(add32(x[8], x[11]), 13))
-    x[10] = xor(x[10], rot32(add32(x[9], x[8]), 18))
-    x[12] = xor(x[12], rot32(add32(x[15], x[14]), 7))
-    x[13] = xor(x[13], rot32(add32(x[12], x[15]), 9))
-    x[14] = xor(x[14], rot32(add32(x[13], x[12]), 13))
-    x[15] = xor(x[15], rot32(add32(x[14], x[13]), 18))
+    quarter_round(x, 0, 4, 8, 12)
+    quarter_round(x, 1, 5, 9, 13)
+    quarter_round(x, 2, 6, 10, 14)
+    quarter_round(x, 3, 7, 11, 15)
+    quarter_round(x, 0, 5, 10, 15)
+    quarter_round(x, 1, 6, 11, 12)
+    quarter_round(x, 2, 7, 8, 13)
+    quarter_round(x, 3, 4, 9, 14)
     return x
 
 
