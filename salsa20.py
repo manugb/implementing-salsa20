@@ -60,8 +60,7 @@ def add32(a, b):
     return (-(hi & 0x8000) | (hi & 0x7FFF)) << 16 | (lo & 0xFFFF)
 
 
-def _do_salsa20_round(matrix):
-    x = deepcopy(matrix)
+def _do_salsa20_round(x):
     x[4] = xor(x[4], rot32(add32(x[0], x[12]), 7))
     x[8] = xor(x[8], rot32(add32(x[4], x[0]), 9))
     x[12] = xor(x[12], rot32(add32(x[8], x[4]), 13))
@@ -94,7 +93,11 @@ def _do_salsa20_round(matrix):
     x[13] = xor(x[13], rot32(add32(x[12], x[15]), 9))
     x[14] = xor(x[14], rot32(add32(x[13], x[12]), 13))
     x[15] = xor(x[15], rot32(add32(x[14], x[13]), 18))
-    return [add32(x, y) for x, y in zip(x, matrix)]
+    return x
+
+
+def sum_matrix(a, b):
+    return [add32(x, y) for x, y in zip(a, b)]
 
 
 def word_to_bytes(words):
@@ -103,13 +106,14 @@ def word_to_bytes(words):
 
 def generate_salsa20_stream(key, nonce):
     block_number = 0
-    matrix = generate_matrix(key, nonce, block_number)
     while True:
-        for _ in range(20):
-            matrix = _do_salsa20_round(matrix)
+        matrix = generate_matrix(key, nonce, block_number)
+        temp = deepcopy(matrix)
+        for _ in range(10):
+            temp = _do_salsa20_round(temp)
+        matrix = sum_matrix(temp, matrix)
         yield word_to_bytes(matrix)
         block_number += 1
-        matrix = generate_matrix(key, nonce, block_number)
 
 
 def salsa_20_xor_bytes(content, key, nonce):
