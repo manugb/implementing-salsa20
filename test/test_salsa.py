@@ -19,11 +19,11 @@ class TestSalsa:
         assert str(hexlify(next(generate_salsa20_stream(key, nonce))), encoding='utf-8') == expected
 
     # Why this exepected result has 60 bytes? Seems strange
-    # def test_three(self):
-    #     key = unhexlify("0000000000000000000000000000000000000000000000000000000000000000")
-    #     nonce = unhexlify("0000000000000001")
-    #     expected = "de9cba7bf3d69ef5e786dc63973f653a0b49e015adbff7134fcb7df137821031e85a050278a7084527214f73efc7fa5b5277062eb7a0433e445f41e3"
-    #     assert str(hexlify(next(generate_salsa20_stream(key, nonce))), encoding='utf-8') == expected
+    def test_three(self):
+        key = unhexlify("0000000000000000000000000000000000000000000000000000000000000000")
+        nonce = unhexlify("0000000000000001")
+        expected = "de9cba7bf3d69ef5e786dc63973f653a0b49e015adbff7134fcb7df137821031e85a050278a7084527214f73efc7fa5b5277062eb7a0433e445f41e3"
+        assert str(hexlify(next(generate_salsa20_stream(key, nonce))), encoding='utf-8').startswith(expected)
 
     def test_four(self):
         key = unhexlify("0000000000000000000000000000000000000000000000000000000000000000")
