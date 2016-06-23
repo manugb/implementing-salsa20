@@ -1,2 +1,9 @@
 *.txt
 arguments
+venv
+*.pyc
+__pycache__
+.idea
+goku.encr.bmp
+goku.orig.bmp
+.cache
